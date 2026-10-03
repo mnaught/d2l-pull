@@ -7,10 +7,35 @@ Two equivalent versions are included. Pick whichever suits you:
 
 | File | Needs |
 |---|---|
+| `chrome-extension/` | Chrome or Edge only. **One click, no cookies to copy** (see below) |
 | `d2l_pull.sh` | bash, `curl`, `jq` |
 | `d2l_pull.py` | Python 3.8+ (standard library only, nothing to install) |
 
-## Quick start
+## Chrome extension (easiest)
+
+Runs the same pull inside your logged-in Brightspace tab, so there's no cookie copy/paste
+and nothing else to install. Works on Windows, Mac and Linux.
+
+**Install (once):**
+1. Download this repo (green **Code** button, then **Download ZIP**) and unzip it somewhere permanent,
+   e.g. `Documents\d2l-pull`.
+2. In Chrome go to `chrome://extensions` (Edge: `edge://extensions`).
+3. Turn on **Developer mode** (top right).
+4. Click **Load unpacked** and pick the `chrome-extension` folder.
+5. Optional: click the puzzle-piece icon and pin **D2L Pull** to the toolbar.
+
+**Use:**
+1. Log into Brightspace and stay on any Brightspace page.
+2. Click the **D2L Pull** toolbar button.
+3. Click **Roster**, **Grades** or **Both**.
+
+CSVs are saved to `Downloads\d2l-pull\<date>\rosters\` and `...\grades\`, with the same columns
+as the scripts. **Settings** in the popup holds the same filters as the environment variables below
+(role, term, students, grade items) and remembers them. Keep the popup open until it says **Done**.
+
+## Scripts
+
+### Quick start
 
 1. Log into Brightspace in your browser.
 2. Open DevTools (F12), then go to **Application** (Chrome/Edge) or **Storage** (Firefox), then **Cookies**, then your D2L host.
@@ -32,7 +57,7 @@ Session cookies expire when you log out or your session times out. If you get a 
 > This uses your own logged-in session, so it can only see what you can already see in
 > Brightspace. No admin-registered OAuth app is required.
 
-## Modes
+### Modes
 
 ```bash
 python3 d2l_pull.py roster    # class rosters only
@@ -43,7 +68,7 @@ python3 d2l_pull.py help      # show all options
 
 You can also set `MODE=roster|grades|both` instead of passing an argument.
 
-## Output
+### Output
 
 | Mode | File | Columns |
 |---|---|---|

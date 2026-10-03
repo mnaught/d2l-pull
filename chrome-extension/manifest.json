@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "D2L Pull",
+  "version": "1.0.0",
+  "description": "One-click Brightspace (D2L) class rosters and CompTIA gradebook exports for your current-term courses.",
+  "action": {
+    "default_title": "D2L Pull",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["activeTab", "scripting", "downloads", "storage"]
+}
