@@ -1,0 +1,12 @@
+# Output folders contain student data (FERPA) — never commit them
+rosters/
+grades/
+*.csv
+
+# Keep session cookies out of git
+.env
+*.cookies
+
+__pycache__/
+*.pyc
+.DS_Store
