@@ -9,10 +9,10 @@ const DEFAULT_SETTINGS = {
   d2lHost: "https://d2l.pcc.edu",
   folder: "!Fall 26/cis140l/script/CompTIA-D2L-Gradebook-Converter/Data",
   roster: false, grades: true, labs: true, quizzes: true, convert: false,
-  week: "",                         // blank = completed weeks since the CompTIA class started
+  week: "",                         // blank = completed weeks since the class started
   roleMatch: "Instructor", termMatch: "", studentMatch: "Student",
   itemMatch: "comptia.*(lab|quiz)|(lab|quiz).*comptia",
-  zeroMissing: false, quizReportMatch: "quiz",
+  zeroMissing: true, quizDue: "1:2,2:4,3:6,4:8,5:10", quizReportMatch: "quiz",
 };
 
 async function getSettings() {
@@ -113,6 +113,7 @@ async function runJob(s) {
           const r = await runInTab(tab.id, "core.js", "d2lPull", {
             roster: s.roster, grades: s.grades, roleMatch: s.roleMatch, termMatch: s.termMatch,
             studentMatch: s.studentMatch, itemMatch: s.itemMatch, zeroMissing: s.zeroMissing,
+            week: s.week, quizDue: s.quizDue,
           });
           if (!r.courses.length) await log("No current-term courses where you're an instructor.", "err");
           for (const f of r.files) {
@@ -202,4 +203,12 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 
 // A crashed/stopped worker must not leave the popup stuck on "running".
 chrome.runtime.onStartup.addListener(() => chrome.storage.session.set({ running: false }));
-chrome.runtime.onInstalled.addListener(() => chrome.storage.session.set({ running: false }));
+chrome.runtime.onInstalled.addListener(async () => {
+  await chrome.storage.session.set({ running: false });
+  // v2.1: "missing grades = 0 through the week" is the new default; drop the old saved "off".
+  const { settings } = await chrome.storage.sync.get("settings");
+  if (settings && settings.schema !== 21) {
+    delete settings.zeroMissing;
+    await chrome.storage.sync.set({ settings: { ...settings, schema: 21 } });
+  }
+});

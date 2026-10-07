@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "D2L Pull",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "One-click Brightspace (D2L) rosters/grades and CompTIA CertMaster lab/quiz exports, with optional CompTIA-to-D2L conversion.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq3fpp3zyTuLeAN6vL7VIRAplmXbTJtgkoRxCaYiWa5FERdNxBG4DOrfNV7sBidJLEBe/PMdwctXJmn16w15c1XLIZKIilHz9C80skzSAdF5L68PLMwnqaazS/69Ll8EJ6QpTFqdJ/xIr7n7/Na7H37qR831zXh4LuNCWnaaFWkazdlTYYJ36ZvlNjS3zhIz3mu0uz/CPwlADn6MfskYPvXDixuiZH1d/O/zUlkhYfhpgBXcOpnRH/aAaXH+HXg3F1pwPtaRaJKS6QZE14Oc4aqxZvNJnXvV5a2p/xlPRnxiN+TFfurgjvkra50bEux36E2wzWNZLdpnBPE8t1acW9wIDAQAB",
   "action": {

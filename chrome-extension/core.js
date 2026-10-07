@@ -15,8 +15,28 @@
     termMatch: "",
     studentMatch: "Student",
     itemMatch: "comptia.*(lab|quiz)|(lab|quiz).*comptia",
-    zeroMissing: false,      // D2L leaves ungraded cells blank; 0 would be imported as a real grade
+    zeroMissing: true,       // missing grade -> 0, but only for items due by `week`
+    week: "",                // blank = completed weeks since the course started
+    quizDue: "1:2,2:4,3:6,4:8,5:10",   // CompTIA Quiz N is due in week M (same as the converter's config.json)
   };
+
+  // Which week an item belongs to: "Week 3 CompTIA Lab Assignments" -> 3,
+  // "CompTIA Quiz 2" -> its due week from quizDue. Anything else -> null (never zero-filled).
+  function itemWeek(name, dueMap) {
+    let m = /\bWeek (\d+)\b/i.exec(name);
+    if (m) return Number(m[1]);
+    m = /\bQuiz (\d+)\b/i.exec(name);
+    if (m && dueMap[m[1]] != null) return dueMap[m[1]];
+    return null;
+  }
+  function parseDue(text) {
+    const map = {};
+    for (const part of String(text || "").split(/[,;\s]+/)) {
+      const m = /^(\d+)\s*[:=]\s*(\d+)$/.exec(part);
+      if (m) map[m[1]] = Number(m[2]);
+    }
+    return map;
+  }
 
   // Roster CSV: strings quoted, numbers bare (same as the Python script).
   const qcell = (v) => (typeof v === "number" ? String(v) : '"' + String(v ?? "").replace(/"/g, '""') + '"');
@@ -77,7 +97,7 @@
         const s = acc.StartDate, e = acc.EndDate;
         if (!(s && e && s.slice(0, 19) <= now && now <= e.slice(0, 19))) continue;  // current term only
         if (termRe && !termRe.test(`${ou.Code || ""} ${ou.Name}`)) continue;
-        courses.push({ id: ou.Id, name: ou.Name, code: ou.Code });
+        courses.push({ id: ou.Id, name: ou.Name, code: ou.Code, start: s });
       }
       if (!page.PagingInfo?.HasMoreItems) break;
       bookmark = page.PagingInfo.Bookmark;
@@ -127,12 +147,19 @@
           }
         }
 
+        // Missing grades become 0 only for items due by the chosen week; later ones stay blank.
+        let week = parseInt(o.week, 10);
+        if (!(week > 0)) week = Math.max(0, Math.floor((Date.now() - Date.parse(c.start)) / (7 * 864e5)));
+        const dueMap = parseDue(o.quizDue);
+        const fillZero = sel.map((i) => { const w = itemWeek(i.Name, dueMap); return !!o.zeroMissing && w != null && w <= week; });
+        if (o.zeroMissing) log(`  grades: missing grades -> 0 through week ${week} (${fillZero.filter(Boolean).length} of ${sel.length} columns)`);
+
         const students = classlist.filter((s) => studentRe.test(s.ClasslistRoleDisplayName || s.RoleName || ""));
         const rows = [["OrgDefinedId", "Username", ...sel.map((i) => d2lHeader(i, cats[i.CategoryId])), "End-of-Line Indicator"].map(dcell).join(",")];
         for (const s of students) {
-          const vals = sel.map((i) => {
+          const vals = sel.map((i, k) => {
             const p = points.get(`${i.Id}|${s.Identifier}`);
-            return p != null ? n(p) : o.zeroMissing ? "0" : "";
+            return p != null ? n(p) : fillZero[k] ? "0" : "";
           });
           rows.push(["#" + (s.OrgDefinedId || ""), "#" + (s.Username || ""), ...vals, "#"].map(dcell).join(","));
         }
@@ -145,5 +172,5 @@
 
   root.d2lPull = d2lPull;
   root.D2L_DEFAULTS = DEFAULTS;
-  if (typeof module !== "undefined") module.exports = { d2lPull, DEFAULTS, d2lHeader };
+  if (typeof module !== "undefined") module.exports = { d2lPull, DEFAULTS, d2lHeader, itemWeek, parseDue };
 })(typeof globalThis !== "undefined" ? globalThis : this);

@@ -38,7 +38,8 @@ cookie or token copy/paste. One extension reads both sites.
    | CompTIA CertMaster | Quizzes | `comptia_quizzes.csv`: same as your custom quiz report export |
    | CompTIA CertMaster | Run converter after download | runs `convert.py` on those files |
 
-3. Click **Download**. You can close the popup; the work continues in the background.
+3. Set **Through week** if needed (blank = weeks completed so far), then click **Download**.
+   You can close the popup; the work continues in the background. The popup title shows the version.
 
 Files are saved (overwriting the previous ones) into
 `Downloads\!Fall 26\cis140l\script\CompTIA-D2L-Gradebook-Converter\Data` by default.
@@ -58,14 +59,17 @@ python convert.py comptia_labs.csv d2l.csv --quizzes comptia_quizzes.csv --week 
 ```
 
 The first command previews the grades and asks any student-matching questions; the second writes
-`d2l_import.csv` for **Grades → Import**. **Week** blank means "completed weeks since the CompTIA
-class started" (e.g. 2 on the Wednesday of week 3). Type a number to override.
+`d2l_import.csv` for **Grades → Import**. **Through week** (above the Download button) sets
+`--week` and the D2L zero-fill. Blank means "weeks completed since the class started" (e.g. 2 on
+the Wednesday of week 3). Type a number to override.
 If **Grades** isn't ticked, the converter uses the `d2l.csv` already in the folder.
 
 ### Notes
 
-- Missing D2L grades are left **blank**, like Brightspace's own export. Writing 0 (a setting) would
-  make the converter import zeros into future weeks.
+- Missing D2L grades are written as **0 only through "Through week"**: the "Week N" lab columns
+  with N ≤ that week, and quizzes due by then (quiz due weeks are a setting, default
+  `1:2,2:4,3:6,4:8,5:10` like the converter's `config.json`). Later columns stay blank, so nothing
+  imports zeros into future weeks. Turn it off under Settings to leave every missing grade blank.
 - The quiz report is the first CompTIA custom report on the class whose name contains "quiz"
   (change under Settings).
 - If Chrome asks where to save each file, turn off *Settings → Downloads → Ask where to save each file*.

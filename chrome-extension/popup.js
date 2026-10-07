@@ -2,7 +2,7 @@
 // then shows its progress. Closing the popup does not stop the job.
 
 const CHECKS = ["roster", "grades", "labs", "quizzes", "convert", "zeroMissing"];
-const TEXTS = ["folder", "d2lHost", "roleMatch", "termMatch", "studentMatch", "itemMatch", "quizReportMatch", "week"];
+const TEXTS = ["folder", "d2lHost", "roleMatch", "termMatch", "studentMatch", "itemMatch", "quizReportMatch", "quizDue", "week"];
 const $ = (id) => document.getElementById(id);
 const logEl = $("log");
 let DEFAULTS = {};
@@ -29,7 +29,7 @@ async function load() {
 }
 
 function read() {
-  const s = {};
+  const s = { schema: 21 };
   CHECKS.forEach((k) => (s[k] = $(k).checked));
   TEXTS.forEach((k) => (s[k] = $(k).value.trim()));
   s.d2lHost = (s.d2lHost || DEFAULTS.d2lHost).replace(/\/+$/, "");
@@ -54,7 +54,7 @@ async function save(quiet) {
 // The converter needs the labs file, so it is only available with Labs ticked.
 function syncConvert() {
   $("convert").disabled = !$("labs").checked;
-  $("week").disabled = !$("convert").checked || !$("labs").checked;
+  $("week").disabled = !($("grades").checked || $("convert").checked);
 }
 
 async function checkTabs(s) {
@@ -95,4 +95,5 @@ chrome.runtime.onMessage.addListener((m) => {
   if (m?.type === "state") setRunning(m.running);
 });
 
+$("ver").textContent = "v" + chrome.runtime.getManifest().version;
 load();

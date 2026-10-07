@@ -22,8 +22,10 @@
   .checks { display: flex; gap: 18px; }
   label.cb { display: flex; align-items: center; gap: 6px; cursor: pointer; }
   .sub { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); display: flex; align-items: center; justify-content: space-between; }
-  .week { display: flex; align-items: center; gap: 6px; color: var(--muted); }
-  .week input { width: 56px; }
+  .weekrow { display: flex; align-items: center; gap: 8px; margin: 0 0 10px 2px; white-space: nowrap; }
+  #week { width: 64px; flex: none; }
+  .weekrow .hint { margin: 0; white-space: normal; }
+  #ver { font-size: 11px; font-weight: 400; color: var(--muted); }
   button { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
            background: transparent; color: var(--fg); cursor: pointer; }
   button.primary { width: 100%; background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
@@ -45,7 +47,7 @@
 </head>
 <body>
 <main>
-  <h1>D2L Pull</h1>
+  <h1>D2L Pull <span id="ver"></span></h1>
 
   <section>
     <div class="src">
@@ -69,9 +71,14 @@
     </div>
     <div class="sub">
       <label class="cb"><input type="checkbox" id="convert"> Run converter after download</label>
-      <span class="week">Week <input type="number" id="week" min="1" max="20" placeholder="auto"></span>
     </div>
   </section>
+
+  <div class="weekrow">
+    <span>Through week</span>
+    <input type="number" id="week" min="1" max="20" placeholder="auto">
+    <span class="hint" id="weekHint">blank = weeks completed so far</span>
+  </div>
 
   <button class="primary" id="go">Download</button>
 
@@ -86,8 +93,10 @@
     <label class="f">D2L term filter, e.g. Fall 2026 (blank = course dates)<input type="text" id="termMatch"></label>
     <label class="f">D2L students (regex)<input type="text" id="studentMatch"></label>
     <label class="f">D2L grade items (regex on "category item name")<input type="text" id="itemMatch"></label>
-    <label class="cb" style="margin-top:8px"><input type="checkbox" id="zeroMissing"> Write 0 for missing D2L grades</label>
-    <div class="hint">Leave off for the converter — D2L's own export leaves them blank, and 0s would be imported as real grades.</div>
+    <label class="cb" style="margin-top:8px"><input type="checkbox" id="zeroMissing"> Missing D2L grades = 0 (through the week)</label>
+    <div class="hint">Only lab weeks and quizzes due by "Through week" get 0; later ones stay blank.</div>
+    <label class="f">CompTIA quiz due weeks (quiz:week)<input type="text" id="quizDue"></label>
+    <div class="hint">Same as "quizzes" in the converter's config.json.</div>
     <label class="f">CompTIA quiz report name contains<input type="text" id="quizReportMatch"></label>
     <div class="row"><button id="reset">Reset defaults</button><button id="save">Save settings</button></div>
   </details>
