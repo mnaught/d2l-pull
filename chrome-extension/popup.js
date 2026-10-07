@@ -1,76 +1,98 @@
-// Popup: injects core.js into the active Brightspace tab, runs the pull there
-// (so your session is used automatically), then saves the CSVs via chrome.downloads.
+// Popup: edits settings and starts a job in the background worker (background.js),
+// then shows its progress. Closing the popup does not stop the job.
 
-const FIELDS = ["roleMatch", "termMatch", "studentMatch", "itemMatch"];
-const logEl = document.getElementById("log");
+const CHECKS = ["roster", "grades", "labs", "quizzes", "convert", "zeroMissing"];
+const TEXTS = ["folder", "d2lHost", "roleMatch", "termMatch", "studentMatch", "itemMatch", "quizReportMatch", "week"];
+const $ = (id) => document.getElementById(id);
+const logEl = $("log");
+let DEFAULTS = {};
 
-function log(msg, cls) {
+function addLog(text, cls) {
   const line = document.createElement("div");
-  line.textContent = msg;
+  line.textContent = text;
   if (cls) line.className = cls;
   logEl.appendChild(line);
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-async function loadSettings() {
-  const saved = await chrome.storage.sync.get(FIELDS);
-  for (const f of FIELDS) document.getElementById(f).value = saved[f] ?? D2L_DEFAULTS[f];
+async function load() {
+  DEFAULTS = await chrome.runtime.sendMessage({ type: "defaults" });
+  const { settings } = await chrome.storage.sync.get("settings");
+  const s = { ...DEFAULTS, ...(settings || {}) };
+  CHECKS.forEach((k) => ($(k).checked = !!s[k]));
+  TEXTS.forEach((k) => ($(k).value = s[k] ?? ""));
+  syncConvert();
+  checkTabs(s);
+  const { log = [], running = false } = await chrome.storage.session.get(["log", "running"]);
+  log.forEach((l) => addLog(l.text, l.cls));
+  setRunning(running);
 }
-function readSettings() {
-  return Object.fromEntries(FIELDS.map((f) => [f, document.getElementById(f).value.trim()]));
+
+function read() {
+  const s = {};
+  CHECKS.forEach((k) => (s[k] = $(k).checked));
+  TEXTS.forEach((k) => (s[k] = $(k).value.trim()));
+  s.d2lHost = (s.d2lHost || DEFAULTS.d2lHost).replace(/\/+$/, "");
+  if (!/^https:\/\//.test(s.d2lHost)) s.d2lHost = "https://" + s.d2lHost.replace(/^\w+:\/\//, "");
+  return s;
 }
 
-document.getElementById("save").onclick = async () => {
-  await chrome.storage.sync.set(readSettings());
-  log("Settings saved.", "ok");
-};
-document.getElementById("reset").onclick = async () => {
-  await chrome.storage.sync.remove(FIELDS);
-  await loadSettings();
-  log("Defaults restored.", "ok");
-};
-
-// Progress lines sent from the injected script
-chrome.runtime.onMessage.addListener((m) => { if (m?.d2lLog) log(m.d2lLog); });
-
-async function run(mode) {
-  const buttons = document.querySelectorAll("button");
-  buttons.forEach((b) => (b.disabled = true));
-  logEl.textContent = "";
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.url?.startsWith("http")) throw new Error("Open your Brightspace site in this tab first.");
-
-    const opts = { ...readSettings(), mode };
-    for (const k of Object.keys(opts)) if (opts[k] === "" && k !== "termMatch") delete opts[k];
-
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["core.js"] });
-    const [{ result }] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      args: [opts],
-      func: async (opts) => {
-        try {
-          const log = (m) => chrome.runtime.sendMessage({ d2lLog: m }).catch(() => {});
-          return { ok: true, ...(await globalThis.d2lPull(opts, { log })) };
-        } catch (e) {
-          return { ok: false, error: String(e.message || e) };
-        }
-      },
-    });
-    if (!result.ok) throw new Error(result.error);
-
-    const stamp = new Date().toISOString().slice(0, 10);
-    for (const f of result.files) {
-      const url = "data:text/csv;charset=utf-8," + encodeURIComponent(f.csv);
-      await chrome.downloads.download({ url, filename: `d2l-pull/${stamp}/${f.path}`, conflictAction: "overwrite" });
-    }
-    log(`Done — ${result.files.length} file(s) saved to Downloads/d2l-pull/${stamp}/`, "ok");
-  } catch (e) {
-    log(e.message || String(e), "err");
-  } finally {
-    buttons.forEach((b) => (b.disabled = false));
+async function save(quiet) {
+  const s = read();
+  // A Brightspace site other than the built-in one needs permission once.
+  const origin = s.d2lHost + "/*";
+  if (!(await chrome.permissions.contains({ origins: [origin] }))) {
+    const granted = await chrome.permissions.request({ origins: [origin] });
+    if (!granted) { addLog(`Permission for ${s.d2lHost} was declined — keeping the old site.`, "err"); s.d2lHost = DEFAULTS.d2lHost; $("d2lHost").value = s.d2lHost; }
   }
+  await chrome.storage.sync.set({ settings: s });
+  if (!quiet) addLog("Settings saved.", "ok");
+  checkTabs(s);
+  return s;
 }
 
-document.querySelectorAll("[data-mode]").forEach((b) => (b.onclick = () => run(b.dataset.mode)));
-loadSettings();
+// The converter needs the labs file, so it is only available with Labs ticked.
+function syncConvert() {
+  $("convert").disabled = !$("labs").checked;
+  $("week").disabled = !$("convert").checked || !$("labs").checked;
+}
+
+async function checkTabs(s) {
+  const show = (dot, label, tabs, what) => {
+    $(dot).className = "dot " + (tabs.length ? "on" : "off");
+    $(label).textContent = tabs.length ? "tab open" : `open ${what} first`;
+  };
+  show("d2lDot", "d2lStatus", await chrome.tabs.query({ url: s.d2lHost + "/*" }).catch(() => []), new URL(s.d2lHost).host);
+  show("ctDot", "ctStatus", await chrome.tabs.query({ url: "https://platform.comptia.org/*" }), "platform.comptia.org");
+}
+
+function setRunning(running) {
+  $("go").disabled = running;
+  $("go").textContent = running ? "Working…" : "Download";
+}
+
+// Checkboxes and week save as you click them.
+CHECKS.forEach((k) => $(k).addEventListener("change", () => { syncConvert(); save(true); }));
+$("week").addEventListener("change", () => save(true));
+$("save").onclick = () => save(false);
+$("reset").onclick = async () => {
+  await chrome.storage.sync.remove("settings");
+  logEl.textContent = "";
+  await load();
+  addLog("Defaults restored.", "ok");
+};
+
+$("go").onclick = async () => {
+  const s = await save(true);
+  if (!s.roster && !s.grades && !s.labs && !s.quizzes) return addLog("Tick at least one download.", "err");
+  logEl.textContent = "";
+  const r = await chrome.runtime.sendMessage({ type: "run" });
+  if (!r?.ok) addLog(r?.error || "Could not start.", "err");
+};
+
+chrome.runtime.onMessage.addListener((m) => {
+  if (m?.type === "log") addLog(m.text, m.cls);
+  if (m?.type === "state") setRunning(m.running);
+});
+
+load();
