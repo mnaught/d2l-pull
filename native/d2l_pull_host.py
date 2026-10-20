@@ -228,6 +228,17 @@ def cmd_quote(t):
     return '"' + t.replace("%", "%%") + '"'
 
 
+def windows_script(title, cwd, steps):
+    """The .cmd file for a console run (UTF-8; cmd switches to code page 65001 on line 1)."""
+    safe_title = re.sub(r"([&|<>^()])", r"^\1", title).replace("%", "%%")
+    lines = ["@chcp 65001 >nul", "@echo off", "setlocal DisableDelayedExpansion", f"title {safe_title}",
+             f"cd /d {cmd_quote(str(cwd))}"]
+    for i, s in enumerate(steps, 1):
+        lines += ["echo.", f"echo === Step {i} of {len(steps)} ===", " ".join(cmd_quote(a) for a in s) + " || goto :fail"]
+    lines += ["echo.", "echo Finished.", "goto :eof", ":fail", "echo.", "echo Stopped: the step above reported an error.", ""]
+    return "\r\n".join(lines)
+
+
 def launch(cmd, vals):
     base = interpreter(cmd["program"])
     steps = [base + [substitute(t, vals) for t in step] for step in cmd["steps"]]
@@ -255,14 +266,10 @@ def launch(cmd, vals):
         return {"ok": True, "cwd": str(cwd), "log": str(logfile)}
 
     if sys.platform == "win32":
-        lines = ["@echo off", "setlocal DisableDelayedExpansion", f"title {title.replace('%', '%%')}",
-                 f"cd /d {cmd_quote(str(cwd))}"]
-        for i, s in enumerate(steps, 1):
-            lines += ["echo.", f"echo === Step {i} of {len(steps)} ===", " ".join(cmd_quote(a) for a in s) + " || goto :fail"]
-        lines += ["echo.", "echo Finished.", "goto :eof", ":fail", "echo.", "echo Stopped: the step above reported an error.", ""]
         fd, path = tempfile.mkstemp(prefix="d2l_pull_", suffix=".cmd")
-        with os.fdopen(fd, "w", encoding="mbcs", newline="") as f:
-            f.write("\r\n".join(lines))
+        # UTF-8 so names and paths in any language work (the console is switched to UTF-8 first).
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+            f.write(windows_script(title, cwd, steps))
         flags = subprocess.CREATE_NEW_CONSOLE
         try:
             subprocess.Popen(["cmd.exe", "/k", path], cwd=str(cwd), creationflags=flags | 0x01000000)  # break away from Chrome's job
