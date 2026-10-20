@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# LEGACY (v2): kept for reference. Use d2l_pull.py (v3) instead; it has the same rules and
+# output as the D2L Pull extension. This script still uses its old CompTIA-only defaults.
 # Pull class rosters and/or CompTIA gradebook exports for every current-term
 # Brightspace (D2L) course you teach.
 #

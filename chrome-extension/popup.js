@@ -1,99 +1,109 @@
-// Popup: edits settings and starts a job in the background worker (background.js),
-// then shows its progress. Closing the popup does not stop the job.
+// Popup: quick run. Settings live on the options page; the job runs in background.js,
+// so closing the popup doesn't stop it.
 
-const CHECKS = ["roster", "grades", "labs", "quizzes", "convert", "zeroMissing"];
-const TEXTS = ["folder", "d2lHost", "roleMatch", "termMatch", "studentMatch", "itemMatch", "quizReportMatch", "quizDue", "week"];
 const $ = (id) => document.getElementById(id);
-const logEl = $("log");
-let DEFAULTS = {};
+const call = async (type, extra = {}) => {
+  const r = await chrome.runtime.sendMessage({ type, ...extra });
+  if (!r?.ok) throw new Error(r?.error || "no answer");
+  return r.value;
+};
+let cfg;
 
 function addLog(text, cls) {
   const line = document.createElement("div");
   line.textContent = text;
   if (cls) line.className = cls;
-  logEl.appendChild(line);
-  logEl.scrollTop = logEl.scrollHeight;
+  $("log").appendChild(line);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+const setRunning = (running) => { $("go").disabled = running; $("go").textContent = running ? "Working…" : "Download"; };
+const openOptions = (hash = "") => chrome.tabs.create({ url: chrome.runtime.getURL("options.html") + hash });
+
+async function saveRun() {
+  cfg.run.roster = $("roster").checked;
+  cfg.run.grades = $("grades").checked;
+  cfg.run.post = $("post").checked;
+  cfg.run.week = $("week").value.trim();
+  for (const box of document.querySelectorAll("[data-addon]")) {
+    const id = box.dataset.addon, key = box.dataset.output;
+    const list = new Set(cfg.run.outputs[id] || []);
+    box.checked ? list.add(key) : list.delete(key);
+    cfg.run.outputs[id] = [...list];
+  }
+  await call("setConfig", { cfg });
+}
+
+function dot(el, labelEl, ready, text) {
+  el.className = "dot " + (ready ? "on" : "off");
+  labelEl.textContent = text;
 }
 
 async function load() {
-  DEFAULTS = await chrome.runtime.sendMessage({ type: "defaults" });
-  const { settings } = await chrome.storage.sync.get("settings");
-  const s = { ...DEFAULTS, ...(settings || {}) };
-  CHECKS.forEach((k) => ($(k).checked = !!s[k]));
-  TEXTS.forEach((k) => ($(k).value = s[k] ?? ""));
-  syncConvert();
-  checkTabs(s);
+  $("ver").textContent = "v" + chrome.runtime.getManifest().version;
+  cfg = await call("getConfig");
+  if (!cfg.site) { $("setup").hidden = false; return; }
+  $("main").hidden = false;
+
+  $("roster").checked = cfg.run.roster;
+  $("grades").checked = cfg.run.grades;
+  $("post").checked = cfg.run.post;
+  $("week").value = cfg.run.week || "";
+
+  // Brightspace status + which courses the rules select
+  call("siteStatus").then(async (s) => {
+    dot($("d2lDot"), $("d2lStatus"), s.tab, s.tab ? "tab open" : `open ${new URL(cfg.site).host}`);
+    if (!s.tab) { $("courses").textContent = "Courses are listed once a Brightspace tab is open."; return; }
+    try {
+      const sel = Config.selectCourses(cfg, await call("courses"));
+      $("courses").textContent = sel.selected.length
+        ? `Courses: ${sel.selected.map((c) => c.code || c.name).join(", ")}`
+        : "No courses selected — check Courses in Settings.";
+      if (sel.errors.length) $("courses").textContent += " (" + sel.errors.join("; ") + ")";
+    } catch (e) { $("courses").textContent = e.message; }
+  });
+
+  // One section per approved add-on
+  const pending = [];
+  for (const [id, a] of Object.entries(cfg.addons)) {
+    if (!a.approved) { pending.push(a.info.name); continue; }
+    const sec = document.createElement("section");
+    sec.innerHTML = `<div class="src"><h2></h2><span class="status"><span class="dot"></span><span>checking…</span></span></div><div class="checks"></div>`;
+    sec.querySelector("h2").textContent = a.info.name;
+    for (const o of a.info.outputs) {
+      const l = document.createElement("label"); l.className = "cb";
+      const box = Object.assign(document.createElement("input"), { type: "checkbox", checked: (cfg.run.outputs[id] || []).includes(o.key) });
+      box.dataset.addon = id; box.dataset.output = o.key;
+      box.addEventListener("change", saveRun);
+      l.append(box, " " + o.label);
+      sec.querySelector(".checks").appendChild(l);
+    }
+    $("addons").appendChild(sec);
+    const [d, t] = sec.querySelectorAll(".status > span");
+    call("addonStatus", { id }).then((s) => dot(d, t, s.ready, s.message || (s.ready ? "ready" : "not ready")), (e) => dot(d, t, false, e.message));
+  }
+  if (pending.length) {
+    $("pending").hidden = false;
+    $("pending").innerHTML = `${pending.length} add-on(s) waiting for your approval in <button class="link" id="approve">Settings</button>.`;
+    $("approve").onclick = () => openOptions("#addons");
+  }
+
   const { log = [], running = false } = await chrome.storage.session.get(["log", "running"]);
   log.forEach((l) => addLog(l.text, l.cls));
   setRunning(running);
 }
 
-function read() {
-  const s = { schema: 21 };
-  CHECKS.forEach((k) => (s[k] = $(k).checked));
-  TEXTS.forEach((k) => (s[k] = $(k).value.trim()));
-  s.d2lHost = (s.d2lHost || DEFAULTS.d2lHost).replace(/\/+$/, "");
-  if (!/^https:\/\//.test(s.d2lHost)) s.d2lHost = "https://" + s.d2lHost.replace(/^\w+:\/\//, "");
-  return s;
-}
-
-async function save(quiet) {
-  const s = read();
-  // A Brightspace site other than the built-in one needs permission once.
-  const origin = s.d2lHost + "/*";
-  if (!(await chrome.permissions.contains({ origins: [origin] }))) {
-    const granted = await chrome.permissions.request({ origins: [origin] });
-    if (!granted) { addLog(`Permission for ${s.d2lHost} was declined — keeping the old site.`, "err"); s.d2lHost = DEFAULTS.d2lHost; $("d2lHost").value = s.d2lHost; }
-  }
-  await chrome.storage.sync.set({ settings: s });
-  if (!quiet) addLog("Settings saved.", "ok");
-  checkTabs(s);
-  return s;
-}
-
-// The converter needs the labs file, so it is only available with Labs ticked.
-function syncConvert() {
-  $("convert").disabled = !$("labs").checked;
-  $("week").disabled = !($("grades").checked || $("convert").checked);
-}
-
-async function checkTabs(s) {
-  const show = (dot, label, tabs, what) => {
-    $(dot).className = "dot " + (tabs.length ? "on" : "off");
-    $(label).textContent = tabs.length ? "tab open" : `open ${what} first`;
-  };
-  show("d2lDot", "d2lStatus", await chrome.tabs.query({ url: s.d2lHost + "/*" }).catch(() => []), new URL(s.d2lHost).host);
-  show("ctDot", "ctStatus", await chrome.tabs.query({ url: "https://platform.comptia.org/*" }), "platform.comptia.org");
-}
-
-function setRunning(running) {
-  $("go").disabled = running;
-  $("go").textContent = running ? "Working…" : "Download";
-}
-
-// Checkboxes and week save as you click them.
-CHECKS.forEach((k) => $(k).addEventListener("change", () => { syncConvert(); save(true); }));
-$("week").addEventListener("change", () => save(true));
-$("save").onclick = () => save(false);
-$("reset").onclick = async () => {
-  await chrome.storage.sync.remove("settings");
-  logEl.textContent = "";
-  await load();
-  addLog("Defaults restored.", "ok");
-};
-
+["roster", "grades", "post"].forEach((k) => $(k).addEventListener("change", saveRun));
+$("week").addEventListener("change", saveRun);
+$("settings").onclick = () => openOptions();
+$("setupBtn").onclick = () => openOptions("#site");
+$("change").onclick = () => openOptions("#post");
 $("go").onclick = async () => {
-  const s = await save(true);
-  if (!s.roster && !s.grades && !s.labs && !s.quizzes) return addLog("Tick at least one download.", "err");
-  logEl.textContent = "";
-  const r = await chrome.runtime.sendMessage({ type: "run" });
-  if (!r?.ok) addLog(r?.error || "Could not start.", "err");
+  await saveRun();
+  $("log").textContent = "";
+  try { await call("run"); } catch (e) { addLog(e.message, "err"); }
 };
-
 chrome.runtime.onMessage.addListener((m) => {
   if (m?.type === "log") addLog(m.text, m.cls);
   if (m?.type === "state") setRunning(m.running);
 });
-
-$("ver").textContent = "v" + chrome.runtime.getManifest().version;
-load();
+load().catch((e) => addLog(e.message, "err"));

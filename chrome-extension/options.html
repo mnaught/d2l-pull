@@ -1,0 +1,163 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>D2L Pull settings</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  body { background: var(--panel); }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 60px; }
+  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+  header h1 { margin: 0; font-size: 20px; }
+  nav { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; font-size: 13px; }
+  nav a { color: var(--accent); text-decoration: none; }
+  .card { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  .card > h2 { margin: 0 0 4px; font-size: 16px; }
+  .card > p.lead { margin: 0 0 12px; color: var(--muted); }
+  h3 { font-size: 14px; margin: 18px 0 6px; }
+  .grid { display: grid; grid-template-columns: 200px 1fr; gap: 8px 14px; align-items: center; }
+  .grid > label { color: var(--muted); }
+  .inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .inline input[type=text], .inline input[type=url] { flex: 1; min-width: 220px; width: auto; }
+  .banner { border: 1px solid var(--warn); background: color-mix(in srgb, var(--warn) 10%, var(--bg)); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+  .muted { color: var(--muted); }
+  code { font-size: 12px; background: var(--panel); padding: 1px 4px; border-radius: 4px; }
+  /* selector */
+  .sel { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .sel .bar { display: flex; gap: 8px; align-items: center; padding: 8px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { border: none; border-radius: 0; padding: 4px 10px; }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .sel .pat { flex: 1; min-width: 200px; }
+  .sel .count { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .sel .perr { color: var(--err); font-size: 12px; padding: 4px 8px; }
+  .sel table { width: 100%; border-collapse: collapse; }
+  .sel .scroll { max-height: 360px; overflow: auto; }
+  .sel th { text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); padding: 5px 8px; position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .sel td { padding: 4px 8px; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); font-size: 12.5px; vertical-align: middle; }
+  .sel tr.hit td { background: var(--hl); }
+  .sel tr.group td { font-weight: 600; background: var(--panel); }
+  .tag { font-size: 10.5px; border: 1px solid var(--line); border-radius: 10px; padding: 0 6px; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+  .tag.warn { border-color: var(--warn); color: var(--warn); }
+  .empty { padding: 14px; color: var(--muted); }
+  textarea { min-height: 70px; }
+  .ph { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .ph code { cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>D2L Pull settings</h1><span class="muted" id="ver"></span><span id="saved" class="muted"></span></header>
+  <nav>
+    <a href="#site">Brightspace</a><a href="#courses">Courses</a><a href="#setup">Course settings</a>
+    <a href="#post">Post-processor</a><a href="#addons">Add-ons</a><a href="#helper">Helper</a><a href="#backup">Backup</a>
+  </nav>
+
+  <div class="card" id="site">
+    <h2>Brightspace</h2>
+    <p class="lead">The address you log in to, e.g. <code>https://online.myschool.edu</code>. D2L Pull only works in a tab where you're already logged in.</p>
+    <div class="inline">
+      <input type="url" id="siteUrl" placeholder="https://…">
+      <button id="detect">Use my open tab</button>
+      <button id="saveSite">Save</button>
+    </div>
+    <div class="hint" id="siteMsg"></div>
+  </div>
+
+  <div class="card" id="courses">
+    <h2>Courses</h2>
+    <p class="lead">Which of your Brightspace courses to pull. Tick courses, or switch to <b>Pattern</b> to match course codes and names with a regular expression.</p>
+    <div class="inline"><button id="loadCourses">Load from Brightspace</button><span class="hint" id="coursesMsg"></span></div>
+    <h3>Count me as teaching when my role is</h3>
+    <div id="rolesSel"></div>
+    <p><label class="cb"><input type="checkbox" id="currentOnly"> Only courses whose start/end dates include today</label></p>
+    <h3>Courses</h3>
+    <div id="coursesSel"></div>
+  </div>
+
+  <div class="card" id="setup">
+    <h2>Course settings</h2>
+    <p class="lead">What to export for each course. <b>Defaults</b> apply to every course that doesn't have its own settings.</p>
+    <div class="inline">
+      <label class="muted">Settings for</label><select id="profileSel"></select>
+      <button id="ownBtn"></button>
+      <span class="muted" id="previewWrap">preview with <select id="previewSel"></select></span>
+    </div>
+    <div class="hint" id="infoMsg"></div>
+
+    <h3>Grade items</h3>
+    <div id="itemsSel"></div>
+
+    <h3>Missing grades</h3>
+    <p><label class="cb"><input type="checkbox" id="zeroOn"> Write <b>0</b> once an item's due date has passed</label></p>
+    <div class="inline" style="margin-left:24px">
+      <label class="cb"><input type="radio" name="cutoff" value="now"> due before now</label>
+      <label class="cb"><input type="radio" name="cutoff" value="week"> due before the end of "Through week" +</label>
+      <input type="number" id="grace" min="0" max="7" style="width:56px"> days
+    </div>
+    <p class="hint">Due dates come from the assignment, discussion or quiz each grade item is linked to. Use the <b>Missing</b> column above to force 0 or blank for single items (e.g. ones with no due date).</p>
+
+    <h3>Students</h3>
+    <div id="studentsSel"></div>
+
+    <h3>Files</h3>
+    <div class="grid">
+      <label>Save to (inside Downloads)</label><div><input type="text" id="folder"><div class="hint">Placeholders: {course_code} {course_name} {course_id}. Chrome can only save inside your Downloads folder.</div></div>
+      <label>Grades file name</label><input type="text" id="gradesFile">
+      <label>Roster file name</label><input type="text" id="rosterFile">
+      <label>Key field</label>
+      <select id="keyField"><option value="both">Both (Org Defined ID + Username)</option><option value="orgdefinedid">Org Defined ID</option><option value="username">Username</option></select>
+      <label>User details</label>
+      <div class="inline"><label class="cb"><input type="checkbox" data-col="last"> Last name</label><label class="cb"><input type="checkbox" data-col="first"> First name</label><label class="cb"><input type="checkbox" data-col="email"> Email</label></div>
+      <label>Grade values</label><span class="muted">Points (same as Brightspace's Grades → Export, so the file can be imported back)</span>
+    </div>
+
+    <div id="linksWrap" hidden>
+      <h3>Add-on classes for this course</h3>
+      <div class="grid" id="links"></div>
+      <p class="hint">"Automatic" links a class whose name shares a number (like a CRN) with the course code or name.</p>
+    </div>
+
+    <div id="post">
+      <h3>Post-processor</h3>
+      <p class="hint" style="margin-top:0">A program to run after the download, such as a converter script. It runs in a console window so it can ask questions. Your computer's D2L Pull helper must approve it once.</p>
+      <div id="pendingPost"></div>
+      <div class="grid">
+        <label>Name</label><input type="text" id="postLabel" placeholder="e.g. CompTIA → D2L converter">
+        <label>Program</label><div class="inline"><input type="text" id="postProgram" placeholder="click Browse…"><button id="browseProgram">Browse…</button></div>
+        <label>Working folder</label><div class="inline"><input type="text" id="postCwd" placeholder="blank = the program's folder"><button id="browseCwd">Browse…</button></div>
+        <label>Arguments</label><div><textarea id="postSteps" placeholder="{grades} --week {week}"></textarea>
+          <div class="hint">One line per step; steps run in order and stop at the first error. Click a placeholder to insert it:</div>
+          <div class="ph" id="placeholders"></div></div>
+        <label>Console window</label><label class="cb"><input type="checkbox" id="postConsole"> Show (needed if the program asks questions)</label>
+      </div>
+      <p class="inline"><button id="savePost">Save &amp; approve…</button><button id="clearPost">Remove</button><span class="hint" id="postMsg"></span></p>
+    </div>
+  </div>
+
+  <div class="card" id="addons">
+    <h2>Add-ons</h2>
+    <p class="lead">Source add-ons bring in data from other platforms (e.g. CompTIA CertMaster). They're separate extensions; approve one here before D2L Pull uses it.</p>
+    <div id="addonList"></div>
+    <div class="inline" style="margin-top:10px"><input type="text" id="addonId" placeholder="add-on extension ID (if it isn't listed)"><button id="addAddon">Add</button></div>
+    <div class="hint" id="addonMsg"></div>
+  </div>
+
+  <div class="card" id="helper">
+    <h2>Helper</h2>
+    <p class="lead">Post-processors need the small D2L Pull helper on this computer. Install it once by running <code>native\install.cmd</code> (Windows) or <code>native/install.sh</code> (Mac/Linux) from the D2L Pull folder, then restart the browser.</p>
+    <div class="inline"><button id="ping">Check helper</button><span id="helperMsg" class="hint"></span></div>
+  </div>
+
+  <div class="card" id="backup">
+    <h2>Backup and sharing</h2>
+    <p class="lead">Export your settings to a file, to back them up or share a course setup with a colleague. Importing replaces your current settings.</p>
+    <div class="inline"><button id="export">Export settings</button><label class="cb"><button id="importBtn">Import…</button><input type="file" id="importFile" accept=".json,application/json" hidden></label><span class="hint" id="backupMsg"></span></div>
+  </div>
+</div>
+<script src="lib/select.js"></script>
+<script src="lib/config.js"></script>
+<script src="selector.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

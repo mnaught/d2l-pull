@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "D2L Pull \u2013 CompTIA CertMaster",
+  "version": "1.0.0",
+  "description": "Source add-on for D2L Pull: CompTIA CertMaster lab gradebooks and quiz reports, exactly as CertMaster exports them.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzGNQbJ1UukVIZMqTS9Q2iycqG4tL0wbz7naRdvfI/qU65Ak1m8aCOOli1uzSeIPU87jQeXNuIvuT23pnqLPVO/j4qjRpq9XepGMZQtrICm6ZWxriWXSMp1Vaet1bxOh5wohqRpGdSNEVq4TFv+EzslXswCZkijmW7L2K0ci+0uOMafI4YgS0vjF2bPHGuejSW+UPXjkA1LndzeUwl6dtmH1Mk9Y+xOKMCNY0JfdPbY4Z4TO0Tah9O7+Q+4kJlpkdNaq542tQFUgF9j1ygFt9R6B4jYMoiEOJyFRNgbTgCEUpG3BnJBwEBybqDAeTLin53pF1lAimIAohrlMlEzRtYQIDAQAB",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://platform.comptia.org/*",
+    "https://api.platform.comptia.org/*"
+  ]
+}

@@ -43,8 +43,9 @@
     return JSON.parse(typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("utf8"));
   }
 
+  // o: { labs, quizzes, quizReportMatch, classIds?: [...] (only these classes), listOnly?: true }
   async function comptiaPull(userOpts = {}, deps = {}) {
-    const o = { ...COMPTIA_DEFAULTS, ...userOpts };       // o.labs, o.quizzes booleans
+    const o = { ...COMPTIA_DEFAULTS, ...userOpts };
     const log = deps.log ?? (() => {});
     const fetchFn = deps.fetch ?? fetch.bind(globalThis);
     const token = deps.token ?? (typeof localStorage !== "undefined" ? localStorage.getItem("jwt-labSimUser") : null);
@@ -76,16 +77,17 @@
         if (cp.deletedDateUtc || cp.archiveDateUtc) continue;
         if (!(cp.startDateUtc <= now && now <= cp.endDateUtc)) continue;           // current term only
         if (c.teachers && !JSON.stringify(c.teachers).includes(userId)) continue; // yours only
-        classes.push({ id: cp.classProfileId, name: cp.name, start: cp.startDateUtc });
+        classes.push({ id: cp.classProfileId, name: cp.name, start: cp.startDateUtc, end: cp.endDateUtc });
       }
     }
-    log(`Current CompTIA classes you teach: ${classes.length}`);
-    classes.forEach((c) => log(`  ${c.name}`));
+    if (o.listOnly) return { classes, files: [] };
+    const wanted = o.classIds ? classes.filter((c) => o.classIds.includes(c.id)) : classes;
+    log(`${wanted.length} CompTIA class(es)`);
 
     const files = [];
-    for (const c of classes) {
-      const tag = classes.length > 1 ? safeName(c.name) + "_" : "";
-      log(`Class ${c.name}`);
+    for (const c of wanted) {
+      const tag = "";
+      log(c.name);
 
       if (o.labs) {
         const products = await api(`/class/${c.id}/courses/selection-options`);

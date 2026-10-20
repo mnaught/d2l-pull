@@ -1,182 +1,137 @@
-# d2l-pull
+# D2L Pull
 
-Pull **class rosters** and **CompTIA gradebooks** for every current-term course you teach, from
-both **Brightspace (D2L)** and **CompTIA CertMaster**, and optionally feed them straight into
-CompTIA-D2L-Gradebook-Converter (`convert.py`).
+One click to download **Brightspace (D2L) rosters and grades** for the courses you teach, plus
+data from other platforms through **add-ons** (e.g. CompTIA CertMaster), and then run **your own
+post-processing script** on the files (a converter, a report, a sync).
 
-| Part | What it does | Needs |
-|---|---|---|
-| `chrome-extension/` | One click: D2L roster + grades, CompTIA labs + quizzes, optional converter run | Chrome or Edge |
-| `native/` | Small Windows helper that lets the extension start `convert.py` | Python (already needed by the converter) |
-| `d2l_pull.py` / `d2l_pull.sh` | D2L roster + grades from the command line | Python 3.8+ / bash + curl + jq |
+It works at any school that uses Brightspace, and in any course. You choose what to pull by ticking
+courses and grade items, or with regular expressions. Both work, and you can mix them.
 
-## Chrome extension (easiest)
+| Part | What it is |
+|---|---|
+| `chrome-extension/` | **D2L Pull**: the main Chrome/Edge extension |
+| `addons/comptia-certmaster/` | Add-on: CompTIA CertMaster lab gradebooks and quiz reports |
+| `native/` | Small helper that lets D2L Pull start your post-processing program (Windows, Mac, Linux) |
+| `d2l_pull.py` | Command-line version (same rules and output; reads settings exported from the extension) |
+| `docs/SOURCE_ADDONS.md` | How to write an add-on for another platform |
 
-The extension runs inside your already-logged-in Brightspace and CompTIA tabs, so there's no
-cookie or token copy/paste. One extension reads both sites.
+## Install
 
-### Install (once)
-
-1. Download this repo (green **Code** button, then **Download ZIP**) and unzip it somewhere permanent,
-   e.g. `Documents\d2l-pull`.
+1. Download this repo (green **Code** button, then **Download ZIP**) and unzip it somewhere permanent.
 2. In Chrome go to `chrome://extensions` (Edge: `edge://extensions`), turn on **Developer mode**,
-   click **Load unpacked** and pick the `chrome-extension` folder. Pin **D2L Pull** to the toolbar.
-3. *Only for "Run converter after download":* double-click `native\install.cmd`, then restart Chrome.
-   (Registers a small helper for your user account; no admin rights. `native\uninstall.cmd` removes it.)
+   click **Load unpacked** and pick the **`chrome-extension`** folder. Pin **D2L Pull** to the toolbar.
+3. *Optional add-ons:* also **Load unpacked** each add-on folder you want, e.g. `addons/comptia-certmaster`.
+4. *Optional post-processing:* run `native\install.cmd` (Windows) or `native/install.sh` (Mac/Linux)
+   once, then restart the browser. It needs Python 3.
 
-### Use
+## Set up (once)
 
-1. Log into **Brightspace** (`d2l.pcc.edu`) and **CompTIA** (`platform.comptia.org`) in two tabs.
-   Any page on each site is fine; the green dots in the popup show both tabs were found.
-2. Click **D2L Pull** and tick what you want:
+Open **D2L Pull → Settings**:
 
-   | Section | Checkbox | File |
-   |---|---|---|
-   | Brightspace (D2L) | Roster | `d2l_roster.csv` |
-   | Brightspace (D2L) | Grades | `d2l.csv`: Brightspace's own Grades export format (Key field: Both, Points, CompTIA lab + quiz items only, no subtotals) |
-   | CompTIA CertMaster | Labs | `comptia_labs.csv`: same as the **Class Gradebook** export with "Show scores as points" |
-   | CompTIA CertMaster | Quizzes | `comptia_quizzes.csv`: same as your custom quiz report export |
-   | CompTIA CertMaster | Run converter after download | runs `convert.py` on those files |
+1. **Brightspace**: your address (e.g. `https://online.myschool.edu`), or click **Use my open tab**.
+2. **Courses**: click **Load from Brightspace**, then choose:
+   * *Count me as teaching when my role is*: e.g. Instructor (schools name roles differently).
+   * *Only courses whose dates include today*: on by default.
+   * *Courses*: tick them, or use a pattern like `CIS.?140L`.
+3. **Course settings**: what to export. **Defaults** apply to every course; give a course its own
+   settings when it needs to differ.
+   * **Grade items**: tick items, or a pattern tested on "category name", e.g. `^(CompTIA Labs|CompTIA Quizzes)\b`.
+   * **Missing grades**: 0 once the item's due date has passed (dates come from the linked assignment,
+     discussion or quiz), with a per-item *Missing* override (auto / 0 / blank).
+   * **Students**: which classlist roles (normally Student).
+   * **Files**: folder inside Downloads (default `D2L Pull/{course_code}`), file names, key field
+     (Org Defined ID / Username / both), extra user columns. Grades are written exactly like
+     Brightspace's *Grades → Export* (points), so they can be imported back.
+   * **Add-on classes**: which add-on class belongs to this course (automatic by CRN).
+   * **Post-processor**: see below.
+4. **Add-ons**: approve each add-on you installed.
 
-3. Set **Through week** if needed (blank = weeks completed so far), then click **Download**.
-   You can close the popup; the work continues in the background. The popup title shows the version.
+### Pick or Pattern
 
-Files are saved (overwriting the previous ones) into
-`Downloads\!Fall 26\cis140l\script\CompTIA-D2L-Gradebook-Converter\Data` by default.
-Change it under **Settings → Save to**. Chrome can only save inside your Downloads folder.
+Every list (roles, courses, grade items, students) has **Pick | Pattern**:
 
-The CompTIA files were checked byte-for-byte against real CertMaster downloads, and the D2L header
-against a real Brightspace export, so `convert.py` treats them exactly like hand-made exports.
+* **Pick**: tick rows. Saved by D2L ID, with the name as a fallback, so a copied course next term
+  still finds the items (flagged *matched by name* so you can check them).
+* **Pattern**: a regular expression (case-insensitive) selects rows, highlighted live. Ticking or
+  unticking a row adds an exception (*added* / *excluded*). Patterns carry over to next term's courses.
+* **Make a pattern from my picks** turns your ticks into a regex that selects exactly them.
+* Switching views keeps the current selection.
 
-### Run converter after download
+## Use
 
-With this ticked (and **Labs** ticked), the helper opens a console window in the converter folder
-(found next to, or one level above, the save folder) and runs:
+1. Log in to Brightspace (and to any add-on's site) in a tab.
+2. Click **D2L Pull**, tick what to download (Roster / Grades / add-on files), set **Through week**
+   if your post-processor needs it (blank = weeks since the course started), and click **Download**.
+   You can close the popup; the work continues in the background.
+
+## Post-processors
+
+A post-processor is any program or script you want run on the downloaded files, e.g. a converter.
+Set it up per course (or in Defaults) under **Course settings → Post-processor**, or with
+**Change…** next to *Run post-processors* in the popup:
+
+* **Program**: **Browse…** to your script (`.py` runs with Python, `.ps1` with PowerShell, `.cmd`/`.bat`, `.sh`, or any program).
+* **Arguments**: one line per step; steps run in order and stop at the first error. Placeholders:
+  `{grades}` `{roster}` `{folder}` `{week}` `{course_code}` `{course_id}` `{course_name}`, plus one
+  per add-on file, e.g. `{comptia.labs}` `{comptia.quizzes}`.
+* **Working folder**: blank means the program's folder. It can use placeholders, e.g. `{folder}/..`.
+* **Console window**: on, so the program can ask questions and you can read its output.
+
+Click **Save & approve…**. The helper on your computer shows the exact command and asks you to
+allow it. The extension can't run anything you haven't approved on that computer. If a file wasn't
+downloaded this time, the copy from your last download in that folder is used.
+
+**Example: CompTIA → D2L converter** (`convert.py` next to its `Data` folder):
 
 ```
-python convert.py comptia_labs.csv d2l.csv --quizzes comptia_quizzes.csv --week N --table
-python convert.py comptia_labs.csv d2l.csv --quizzes comptia_quizzes.csv --week N --out d2l_import.csv
+Save to:         <your folder inside Downloads>/CompTIA-D2L-Gradebook-Converter/Data
+Grades file:     d2l.csv
+Program:         …\CompTIA-D2L-Gradebook-Converter\convert.py
+Working folder:  {folder}/..
+Arguments:       {comptia.labs} {grades} --quizzes {comptia.quizzes} --week {week} --table
+                 {comptia.labs} {grades} --quizzes {comptia.quizzes} --week {week} --out d2l_import.csv
 ```
 
-The first command previews the grades and asks any student-matching questions; the second writes
-`d2l_import.csv` for **Grades → Import**. **Through week** (above the Download button) sets
-`--week` and the D2L zero-fill. Blank means "weeks completed since the class started" (e.g. 2 on
-the Wednesday of week 3). Type a number to override.
-If **Grades** isn't ticked, the converter uses the `d2l.csv` already in the folder.
+## Add-ons
 
-### Notes
+Add-ons are separate extensions that bring in data from other platforms. They keep their own site
+permissions, and D2L Pull only uses them after you approve them. The CompTIA CertMaster add-on
+produces files byte-identical to CertMaster's own *Class Gradebook* (points) and custom quiz report
+exports. To support another platform, see **[docs/SOURCE_ADDONS.md](docs/SOURCE_ADDONS.md)**.
 
-- Missing D2L grades are written as **0 only through "Through week"**: the "Week N" lab columns
-  with N ≤ that week, and quizzes due by then (quiz due weeks are a setting, default
-  `1:2,2:4,3:6,4:8,5:10` like the converter's `config.json`). Later columns stay blank, so nothing
-  imports zeros into future weeks. Turn it off under Settings to leave every missing grade blank.
-- The quiz report is the first CompTIA custom report on the class whose name contains "quiz"
-  (change under Settings).
-- If Chrome asks where to save each file, turn off *Settings → Downloads → Ask where to save each file*.
-- Only current-term courses/classes are included (by their start and end dates).
+## Command line
 
-## Scripts
-
-### Quick start
-
-1. Log into Brightspace in your browser.
-2. Open DevTools (F12), then go to **Application** (Chrome/Edge) or **Storage** (Firefox), then **Cookies**, then your D2L host.
-3. Copy the values of `d2lSessionVal` and `d2lSecureSessionVal` into environment variables:
-
-   ```bash
-   export D2L_SESSION='...d2lSessionVal...'
-   export D2L_SECURE='...d2lSecureSessionVal...'
-   ```
-
-4. Run:
-
-   ```bash
-   python3 d2l_pull.py both      # or: bash d2l_pull.sh both
-   ```
-
-Session cookies expire when you log out or your session times out. If you get a 401/403, grab fresh ones.
-
-> This uses your own logged-in session, so it can only see what you can already see in
-> Brightspace. No admin-registered OAuth app is required.
-
-### Modes
+`d2l_pull.py` (Python 3.8+, no installs) does the D2L part with the same rules and identical output:
 
 ```bash
-python3 d2l_pull.py roster    # class rosters only
-python3 d2l_pull.py grades    # CompTIA lab/quiz grades only
-python3 d2l_pull.py both      # both (default)
-python3 d2l_pull.py help      # show all options
+export D2L_SESSION='…'  D2L_SECURE='…'        # cookies d2lSessionVal / d2lSecureSessionVal
+python3 d2l_pull.py --host https://online.myschool.edu --list-courses
+python3 d2l_pull.py --host … --list-items 123456
+python3 d2l_pull.py --host … --grades --courses-pattern 'CIS.?140L' --items-pattern '^CompTIA' --out ~/grades
+python3 d2l_pull.py --profile d2l-pull-settings.json --grades --then 'python3 convert.py … {grades} --week {week}'
 ```
 
-You can also set `MODE=roster|grades|both` instead of passing an argument.
+Run `python3 d2l_pull.py --help` for all options. `d2l_pull.sh` is the old v2 bash version, kept for reference.
 
-### Output
+## Backup and sharing
 
-| Mode | File | Columns |
-|---|---|---|
-| roster | `rosters/<course code>.csv` | OrgDefinedId, Username, FirstName, LastName, Email, Role |
-| grades | `grades/<course code>_comptia_grades.csv` | OrgDefinedId, Username, one `<Item> Points Grade` per item, End-of-Line Indicator |
+**Settings → Backup → Export** saves everything (courses, items, post-processor steps) to a JSON file
+you can share with colleagues teaching the same course. Importing doesn't copy approvals: each person
+approves post-processors on their own computer.
 
-The grades file mirrors Brightspace's **Grades → Export** with:
+## Privacy
 
-- **Key field:** Both (OrgDefinedId and Username)
-- **Grade values:** Points
-- **Grade items:** CompTIA labs and quizzes only
-- **No** category subtotals, calculated items or final grade
-- **Missing grades exported as 0**
-
-It uses D2L's import layout (`#username`, trailing `#` End-of-Line Indicator), so it can be
-re-imported into the gradebook.
-
-## Which courses?
-
-Only **current-term** courses where your role is **Instructor**. A course counts as current
-when Brightspace marks it active and its start/end dates include today.
-
-## Settings
-
-All optional, set as environment variables:
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `D2L_HOST` | `https://d2l.pcc.edu` | Your Brightspace URL |
-| `ROLE_MATCH` | `Instructor` | Your role name in courses you teach (regex) |
-| `TERM_MATCH` | *(dates)* | Text in course code/name for the term, e.g. `"Fall 2026"`. Use if a course has no start/end dates set |
-| `STUDENT_MATCH` | `Student` | Classlist roles included in the grades export (regex) |
-| `ITEM_MATCH` | `comptia.*(lab\|quiz)\|(lab\|quiz).*comptia` | Regex tested against `"<category> <item name>"` to choose grade items |
-| `ROSTER_OUT` / `GRADES_OUT` | `rosters` / `grades` | Output folders |
-
-Example: export only items whose names start with "Lab" or "Quiz":
-
-```bash
-ITEM_MATCH='^(CompTIA )?(Lab|Quiz)' python3 d2l_pull.py grades
-```
+Everything runs in your browser with your existing logins. Nothing is sent anywhere except to
+Brightspace and the add-on sites themselves. Rosters and grades are student records (FERPA): the
+repo's `.gitignore` excludes CSV output. Don't commit downloaded files or session cookies.
 
 ## Brightspace API calls used
 
 | Purpose | Endpoint |
 |---|---|
 | API versions | `GET /d2l/api/versions/` |
-| Your courses | `GET /d2l/api/lp/{ver}/enrollments/myenrollments/?orgUnitTypeId=3&isActive=true` |
-| Classlist | `GET /d2l/api/le/{ver}/{orgUnitId}/classlist/` |
-| Grade items | `GET /d2l/api/le/{ver}/{orgUnitId}/grades/` |
-| Grade categories | `GET /d2l/api/le/{ver}/{orgUnitId}/grades/categories/` |
-| Grade values | `GET /d2l/api/le/{ver}/{orgUnitId}/grades/{gradeObjectId}/values/` |
-
-## CompTIA API calls used (extension)
-
-All with the page's own login token, from inside your CompTIA tab:
-
-| Purpose | Endpoint (`https://api.platform.comptia.org/api/v1`) |
-|---|---|
-| Your classes | `GET /campuses/{campusId}/campusclasses` |
-| Course version | `GET /class/{classId}/courses/selection-options` |
-| Lab list + points possible | `GET /resources/versions/{versionId}/2/map` |
-| Lab scores (highest) | `GET /reportData/gradebookData/{classId}/{versionId}/paged?filter=Highest&page=N` |
-| Custom reports | `GET /customreports/classes/{classId}/{userId}` |
-| Quiz report | `GET /customreports/{reportId}/{userId}/resources` and `GET /customreports/{reportId}/{userId}?showScoreTimeAttempts=show_points&scoreStats=show_high_scores&…` |
-
-## Privacy
-
-Rosters and grades are student records (FERPA). The `.gitignore` excludes `rosters/`,
-`grades/` and `*.csv` so output is never committed. Never commit your session cookies either.
+| Your courses | `GET /d2l/api/lp/{v}/enrollments/myenrollments/` (paged; course offerings only) |
+| Classlist | `GET /d2l/api/le/{v}/{orgUnitId}/classlist/` |
+| Grade items / categories | `GET /d2l/api/le/{v}/{orgUnitId}/grades/` and `…/grades/categories/` |
+| Grade values | `GET /d2l/api/le/{v}/{orgUnitId}/grades/{gradeObjectId}/values/` (paged) |
+| Due dates | `…/dropbox/folders/`, `…/quizzes/`, `…/discussions/forums/{id}/topics/` |

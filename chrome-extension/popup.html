@@ -2,107 +2,75 @@
 <html>
 <head>
 <meta charset="utf-8">
+<link rel="stylesheet" href="ui.css">
 <style>
-  :root { --fg:#1f2328; --muted:#59636e; --line:#d1d9e0; --accent:#0b6bcb; --bg:#fff; --panel:#f6f8fa;
-          --err:#c4161c; --ok:#1a7f37; --warn:#9a6700; }
-  @media (prefers-color-scheme: dark) {
-    :root { --fg:#e6edf3; --muted:#9198a1; --line:#3d444d; --accent:#4493f8; --bg:#151b23; --panel:#1c232c;
-            --err:#f85149; --ok:#3fb950; --warn:#d29922; }
-  }
-  * { box-sizing: border-box; }
-  body { font: 13px/1.4 system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; width: 360px; }
+  body { width: 360px; }
   main { padding: 14px; }
-  h1 { font-size: 15px; margin: 0 0 10px; }
-  section { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; background: var(--panel); }
-  .src { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-  .src h2 { font-size: 13px; margin: 0; }
-  .status { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
-  .dot.on { background: var(--ok); } .dot.off { background: var(--warn); }
-  .checks { display: flex; gap: 18px; }
-  label.cb { display: flex; align-items: center; gap: 6px; cursor: pointer; }
-  .sub { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); display: flex; align-items: center; justify-content: space-between; }
-  .weekrow { display: flex; align-items: center; gap: 8px; margin: 0 0 10px 2px; white-space: nowrap; }
-  #week { width: 64px; flex: none; }
-  .weekrow .hint { margin: 0; white-space: normal; }
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+  h1 { font-size: 15px; margin: 0; }
   #ver { font-size: 11px; font-weight: 400; color: var(--muted); }
-  button { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
-           background: transparent; color: var(--fg); cursor: pointer; }
-  button.primary { width: 100%; background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-  button.primary:hover:not(:disabled) { filter: brightness(1.1); }
-  button:disabled { opacity: .5; cursor: default; }
-  details { margin-top: 12px; }
-  summary { cursor: pointer; color: var(--muted); }
-  details label.f { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
-  input[type=text], input[type=number] { width: 100%; font: 12px ui-monospace, monospace; padding: 5px 6px;
-          border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--fg); }
-  .hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
-  .row { display: flex; justify-content: space-between; margin-top: 10px; }
-  #log { margin-top: 12px; max-height: 240px; overflow: auto; white-space: pre-wrap;
-         font: 11px/1.45 ui-monospace, monospace; color: var(--muted); }
+  section { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; background: var(--panel); }
+  .src { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 8px; }
+  .src h2 { font-size: 13px; margin: 0; }
+  .status { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
+  .dot.on { background: var(--ok); } .dot.off { background: var(--warn); }
+  .courses { font-size: 11px; color: var(--muted); margin: -2px 0 8px; }
+  .checks { display: flex; gap: 16px; flex-wrap: wrap; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 0 0 10px 2px; }
+  #week { width: 64px; flex: none; }
+  .post { justify-content: space-between; }
+  .note { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+  #log { margin-top: 12px; max-height: 260px; overflow: auto; white-space: pre-wrap; font: 11px/1.45 ui-monospace, monospace; color: var(--muted); }
   #log:empty { display: none; }
   #log .h { color: var(--fg); font-weight: 600; margin-top: 4px; }
-  .err { color: var(--err); } .ok { color: var(--ok); }
+  #log .h2 { color: var(--fg); }
 </style>
 </head>
 <body>
 <main>
-  <h1>D2L Pull <span id="ver"></span></h1>
+  <header>
+    <h1>D2L Pull <span id="ver"></span></h1>
+    <button class="link" id="settings">Settings</button>
+  </header>
 
-  <section>
-    <div class="src">
-      <h2>Brightspace (D2L)</h2>
-      <span class="status"><span class="dot" id="d2lDot"></span><span id="d2lStatus">checking…</span></span>
-    </div>
-    <div class="checks">
-      <label class="cb"><input type="checkbox" id="roster"> Roster</label>
-      <label class="cb"><input type="checkbox" id="grades"> Grades</label>
-    </div>
-  </section>
-
-  <section>
-    <div class="src">
-      <h2>CompTIA CertMaster</h2>
-      <span class="status"><span class="dot" id="ctDot"></span><span id="ctStatus">checking…</span></span>
-    </div>
-    <div class="checks">
-      <label class="cb"><input type="checkbox" id="labs"> Labs</label>
-      <label class="cb"><input type="checkbox" id="quizzes"> Quizzes</label>
-    </div>
-    <div class="sub">
-      <label class="cb"><input type="checkbox" id="convert"> Run converter after download</label>
-    </div>
-  </section>
-
-  <div class="weekrow">
-    <span>Through week</span>
-    <input type="number" id="week" min="1" max="20" placeholder="auto">
-    <span class="hint" id="weekHint">blank = weeks completed so far</span>
+  <div id="setup" hidden>
+    <p class="note">Tell D2L Pull where your Brightspace is and which courses to pull.</p>
+    <button class="primary" id="setupBtn">Set up</button>
   </div>
 
-  <button class="primary" id="go">Download</button>
+  <div id="main" hidden>
+    <section>
+      <div class="src">
+        <h2>Brightspace (D2L)</h2>
+        <span class="status"><span class="dot" id="d2lDot"></span><span id="d2lStatus">checking…</span></span>
+      </div>
+      <div class="courses" id="courses"></div>
+      <div class="checks">
+        <label class="cb"><input type="checkbox" id="roster"> Roster</label>
+        <label class="cb"><input type="checkbox" id="grades"> Grades</label>
+      </div>
+    </section>
 
-  <details>
-    <summary>Settings</summary>
-    <label class="f">Save to (folder inside Downloads)
-      <input type="text" id="folder">
-    </label>
-    <div class="hint">Chrome can only save inside your Downloads folder. Default is the converter's Data folder.</div>
-    <label class="f">Brightspace site<input type="text" id="d2lHost"></label>
-    <label class="f">Your D2L role (regex)<input type="text" id="roleMatch"></label>
-    <label class="f">D2L term filter, e.g. Fall 2026 (blank = course dates)<input type="text" id="termMatch"></label>
-    <label class="f">D2L students (regex)<input type="text" id="studentMatch"></label>
-    <label class="f">D2L grade items (regex on "category item name")<input type="text" id="itemMatch"></label>
-    <label class="cb" style="margin-top:8px"><input type="checkbox" id="zeroMissing"> Missing D2L grades = 0 (through the week)</label>
-    <div class="hint">Only lab weeks and quizzes due by "Through week" get 0; later ones stay blank.</div>
-    <label class="f">CompTIA quiz due weeks (quiz:week)<input type="text" id="quizDue"></label>
-    <div class="hint">Same as "quizzes" in the converter's config.json.</div>
-    <label class="f">CompTIA quiz report name contains<input type="text" id="quizReportMatch"></label>
-    <div class="row"><button id="reset">Reset defaults</button><button id="save">Save settings</button></div>
-  </details>
+    <div id="addons"></div>
+    <p class="note" id="pending" hidden></p>
 
-  <div id="log"></div>
+    <div class="row">
+      <span>Through week</span>
+      <input type="number" id="week" min="1" max="30" placeholder="auto">
+      <span class="hint">blank = weeks since the course started</span>
+    </div>
+    <div class="row post">
+      <label class="cb"><input type="checkbox" id="post"> Run post-processors</label>
+      <button id="change" title="Choose the program each course runs after downloading">Change…</button>
+    </div>
+
+    <button class="primary" id="go">Download</button>
+    <div id="log"></div>
+  </div>
 </main>
+<script src="lib/select.js"></script>
+<script src="lib/config.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>
