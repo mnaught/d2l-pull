@@ -11,7 +11,7 @@ courses and grade items, or with regular expressions. Both work, and you can mix
 |---|---|
 | `chrome-extension/` | **D2L Pull**: the main Chrome/Edge extension |
 | `addons/comptia-certmaster/` | Add-on: CompTIA CertMaster lab gradebooks and quiz reports |
-| `native/` | Small helper that lets D2L Pull start your post-processing program (Windows, Mac, Linux) |
+| `native/` | Small helper that lets D2L Pull start your post-processing program (see [Platform support](#platform-support)) |
 | `d2l_pull.py` | Command-line version (same rules and output; reads settings exported from the extension) |
 | `docs/SOURCE_ADDONS.md` | How to write an add-on for another platform |
 
@@ -22,7 +22,29 @@ courses and grade items, or with regular expressions. Both work, and you can mix
    click **Load unpacked** and pick the **`chrome-extension`** folder. Pin **D2L Pull** to the toolbar.
 3. *Optional add-ons:* also **Load unpacked** each add-on folder you want, e.g. `addons/comptia-certmaster`.
 4. *Optional post-processing:* run `native\install.cmd` (Windows) or `native/install.sh` (Mac/Linux)
-   once, then restart the browser. It needs Python 3.
+   once, then restart the browser. It needs Python 3. macOS support is experimental; see below.
+
+## Platform support
+
+The extension and add-ons are plain Chrome extension code and work the same in Chrome, Edge and
+Chromium on Windows, macOS and Linux. Only the optional post-processing helper is platform-specific.
+
+| Component | Windows | macOS | Linux |
+|---|---|---|---|
+| D2L Pull extension, add-ons, downloads | ✅ in use | ✅ expected (same code) | ✅ tested |
+| Helper install | ✅ in use | ⚠️ not tested | ✅ tested |
+| Helper approval dialog / Browse… | ⏳ awaiting first run | ⚠️ not tested | ⚠️ not tested |
+| Running a post-processor | ⏳ awaiting first run | ⚠️ not tested | ◐ tested without console window |
+
+**macOS is experimental.** Two things most likely need attention there:
+
+* The system Python may lack its window toolkit (Tk), which the approval dialog and Browse… use.
+  The helper falls back to macOS's own dialogs, but that path hasn't been run yet.
+* macOS may ask permission the first time the helper opens Terminal. Allow it, or turn off
+  *Console window* for that post-processor (its output then goes to a log file).
+
+On Linux the dialogs use Tk or `zenity`, and console runs open `x-terminal-emulator`, GNOME Terminal,
+Konsole or xterm. If you try D2L Pull on a Mac or Linux desktop, please open an issue with how it went.
 
 ## Set up (once)
 
