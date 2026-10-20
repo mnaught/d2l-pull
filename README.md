@@ -33,8 +33,8 @@ Chromium on Windows, macOS and Linux. Only the optional post-processing helper i
 |---|---|---|---|
 | D2L Pull extension, add-ons, downloads | ✅ in use | ✅ expected (same code) | ✅ tested |
 | Helper install | ✅ in use | ⚠️ not tested | ✅ tested |
-| Helper approval dialog / Browse… | ⏳ awaiting first run | ⚠️ not tested | ⚠️ not tested |
-| Running a post-processor | ⏳ awaiting first run | ⚠️ not tested | ◐ tested without console window |
+| Helper approval dialog / Browse… | ✅ in use | ⚠️ not tested | ⚠️ not tested |
+| Running a post-processor | ✅ in use | ⚠️ not tested | ◐ tested without console window |
 
 **macOS is experimental.** Two things most likely need attention there:
 
