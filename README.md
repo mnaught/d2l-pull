@@ -114,6 +114,44 @@ Arguments:       {comptia.labs} {grades} --quizzes {comptia.quizzes} --week {wee
                  {comptia.labs} {grades} --quizzes {comptia.quizzes} --week {week} --out d2l_import.csv
 ```
 
+How the files flow through this example (CIS 140L):
+
+```mermaid
+flowchart TD
+    BS["Brightspace<br/><small>gradebook, classlist, due dates</small>"]
+    CT["CompTIA CertMaster<br/><small>lab gradebook, quiz report</small>"]
+    EXT["D2L Pull extension<br/><small>runs in your logged-in tab</small>"]
+    ADD["CompTIA add-on<br/><small>runs in your logged-in tab</small>"]
+    subgraph DATA["Converter Data folder (inside Downloads)"]
+        D2L["d2l.csv"]
+        LABS["comptia_labs.csv"]
+        QUIZ["comptia_quizzes.csv"]
+    end
+    HELP["D2L Pull helper<br/><small>runs only your approved command</small>"]
+    CONV["convert.py<br/><small>--table, then --out</small>"]
+    OUT["d2l_import.csv"]
+
+    BS --> EXT
+    CT --> ADD
+    ADD -- "CSV text" --> EXT
+    EXT -- "saves" --> D2L & LABS & QUIZ
+    DATA --> HELP
+    HELP -- "file paths + week" --> CONV
+    CONV --> OUT
+    OUT -. "you: Grades → Import" .-> BS
+
+    classDef site fill:#E1F5EE,stroke:#0F6E56,color:#085041
+    classDef tool fill:#EEEDFE,stroke:#534AB7,color:#3C3489
+    classDef file fill:#F1EFE8,stroke:#5F5E5A,color:#444441
+    class BS,CT site
+    class EXT,ADD,HELP tool
+    class D2L,LABS,QUIZ,CONV,OUT file
+```
+
+Everything stays on your computer and in your own logged-in tabs. The add-on hands D2L Pull CSV text
+(it never saves files itself), D2L Pull saves all three files, and the helper only fills the file
+paths and week into the command you approved. Importing the result is still a manual step.
+
 ## Add-ons
 
 Add-ons are separate extensions that bring in data from other platforms. They keep their own site
